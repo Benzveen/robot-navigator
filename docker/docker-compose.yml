@@ -1,0 +1,76 @@
+# ============================================
+# Docker Compose — Full ROS 2 Nav2 Simulation
+# ============================================
+#
+# Runs the complete Nav2 stack with Gazebo simulation.
+# Your LLM agent connects via rosbridge WebSocket.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.yml up
+#   # Then run your agent on Mac:
+#   PYTHONPATH=src python -m simulator.ros2_bridge
+
+services:
+  # ── ROS 2 Nav2 + Gazebo Simulation ──────────────────
+  nav2-sim:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: robot-nav2-sim
+    environment:
+      - ROS_DOMAIN_ID=0
+      - DISPLAY=${DISPLAY:-:0}
+      - LIBGL_ALWAYS_SOFTWARE=1  # Software rendering for headless
+    ports:
+      - "9090:9090"   # rosbridge WebSocket
+      - "11345:11345" # Gazebo
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # X11 forwarding (optional)
+      - ../maps:/ros2_ws/maps              # Share maps between host and container
+    command: >
+      bash -c "
+        source /opt/ros/jazzy/setup.bash &&
+
+        echo '🚀 Starting ROS 2 Nav2 simulation...' &&
+
+        # Start rosbridge for external agent connection
+        ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090 &
+
+        # Start Nav2 with Turtlebot3 in Gazebo (headless)
+        ros2 launch nav2_bringup tb3_simulation_launch.py \
+          headless:=True \
+          use_sim_time:=True \
+          autostart:=True \
+          params_file:=/ros2_ws/src/robot_navigator/src/config/nav2_params.yaml &
+
+        echo '✅ Nav2 simulation running!' &&
+        echo '📡 rosbridge WebSocket: ws://localhost:9090' &&
+        echo '🤖 Connect your LLM agent to ws://localhost:9090' &&
+
+        # Keep container running
+        wait
+      "
+    restart: unless-stopped
+
+  # ── SLAM Mode (for mapping a new environment) ───────
+  # Uncomment to run SLAM instead of localization
+  # slam:
+  #   build:
+  #     context: ..
+  #     dockerfile: docker/Dockerfile
+  #   container_name: robot-slam
+  #   environment:
+  #     - ROS_DOMAIN_ID=0
+  #   ports:
+  #     - "9090:9090"
+  #   command: >
+  #     bash -c "
+  #       source /opt/ros/jazzy/setup.bash &&
+  #       ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090 &
+  #       ros2 launch nav2_bringup tb3_simulation_launch.py \
+  #         headless:=True \
+  #         use_sim_time:=True \
+  #         autostart:=True \
+  #         slam:=True &
+  #       wait
+  #     "

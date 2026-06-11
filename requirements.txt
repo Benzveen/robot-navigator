@@ -1,0 +1,31 @@
+# === LLM Agent ===
+anthropic>=0.109.1         # Claude SDK — tool-calling, streaming (Jun 2026)
+pydantic>=2.13.4           # Data validation with type hints (May 2026)
+python-dotenv>=1.2.2       # Load .env files (Mar 2026)
+
+# === Web Dashboard ===
+fastapi>=0.136.3           # High-performance async web framework (May 2026)
+uvicorn[standard]>=0.49.0  # ASGI server for FastAPI (Jun 2026)
+websockets>=16.0           # WebSocket protocol implementation (Jan 2026)
+jinja2>=3.1.6              # Template engine for HTML dashboard (Mar 2025)
+
+# === Hardware ===
+gpiozero>=2.0.1            # High-level GPIO interface (Feb 2024)
+RPi.GPIO>=0.7.1            # Low-level GPIO fallback (Feb 2022 — latest available)
+smbus2>=0.5.0              # I2C communication for IMU (MPU6050)
+pyserial>=3.5              # Serial port for Arduino comms (Nov 2020 — latest available)
+rplidar-roboticia>=0.9.6   # RPLidar SDK
+
+# === Navigation & Math ===
+numpy>=2.4.6               # Array computing & transforms (May 2026)
+scipy>=1.17.1              # Scientific computing (Feb 2026)
+filterpy>=1.4.5            # Kalman filters (Oct 2018 — latest available)
+opencv-python-headless>=4.13.0.92  # Computer vision, headless (Feb 2026)
+
+# === Utilities ===
+loguru>=0.7.3              # Better logging (Dec 2024)
+pyyaml>=6.0.3              # YAML config parser (Sep 2025)
+
+# === Testing ===
+pytest>=8.0.0              # Test framework
+pytest-asyncio>=0.24.0     # Async test support

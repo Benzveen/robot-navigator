@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Robot Navigator Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e1e4e8;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 18px; color: #58a6ff; }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-online { background: #1b4332; color: #2dd4bf; }
+        .status-offline { background: #4a1919; color: #f87171; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 16px;
+            padding: 16px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .card h2 {
+            font-size: 14px;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        /* Map Viewer */
+        .map-card { grid-column: 1; grid-row: 1 / 3; }
+        #mapCanvas {
+            width: 100%;
+            height: 400px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+        }
+
+        /* State Panel */
+        .state-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .state-item {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .state-item label {
+            font-size: 11px;
+            color: #8b949e;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .state-item .value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e1e4e8;
+        }
+
+        .state-item .value.warning { color: #f0ad4e; }
+        .state-item .value.danger { color: #f87171; }
+        .state-item .value.good { color: #2dd4bf; }
+
+        /* Chat */
+        .chat-card { grid-column: 2; grid-row: 2; }
+        
+        #chatMessages {
+            height: 200px;
+            overflow-y: auto;
+            background: #0d1117;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .chat-msg {
+            margin-bottom: 6px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .chat-msg.user { background: #1c3a5e; }
+        .chat-msg.agent { background: #1a2e1a; }
+        .chat-msg.system { background: #2d2000; color: #f0ad4e; font-style: italic; }
+
+        .chat-input {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #e1e4e8;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .chat-input input:focus { outline: none; border-color: #58a6ff; }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: #238636; color: white; }
+        .btn-danger { background: #da3633; color: white; }
+        .btn-secondary { background: #30363d; color: #e1e4e8; }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        /* Sensor indicators */
+        .sensor-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .sensor-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+        }
+        .sensor-dot.on { background: #2dd4bf; }
+        .sensor-dot.off { background: #f87171; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 Robot Navigator</h1>
+        <span id="connectionStatus" class="status-badge status-offline">Disconnected</span>
+    </div>
+
+    <div class="main-grid">
+        <!-- Map Viewer -->
+        <div class="card map-card">
+            <h2>🗺️ Live Map</h2>
+            <canvas id="mapCanvas"></canvas>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="startExplore()">🔍 Explore</button>
+                <button class="btn btn-secondary" onclick="goHome()">🏠 Go Home</button>
+                <button class="btn btn-danger" onclick="emergencyStop()">🛑 STOP</button>
+            </div>
+        </div>
+
+        <!-- Robot State -->
+        <div class="card">
+            <h2>📊 Robot State</h2>
+            <div class="state-grid">
+                <div class="state-item">
+                    <label>Position X</label>
+                    <div class="value" id="posX">0.00</div>
+                </div>
+                <div class="state-item">
+                    <label>Position Y</label>
+                    <div class="value" id="posY">0.00</div>
+                </div>
+                <div class="state-item">
+                    <label>Heading</label>
+                    <div class="value" id="heading">0.0°</div>
+                </div>
+                <div class="state-item">
+                    <label>Speed</label>
+                    <div class="value" id="speed">0.00 m/s</div>
+                </div>
+                <div class="state-item">
+                    <label>Battery</label>
+                    <div class="value good" id="battery">100%</div>
+                </div>
+                <div class="state-item">
+                    <label>Nearest Obstacle</label>
+                    <div class="value" id="obstacle">-- m</div>
+                </div>
+                <div class="state-item">
+                    <label>Room</label>
+                    <div class="value" id="room">unknown</div>
+                </div>
+                <div class="state-item">
+                    <label>Map Explored</label>
+                    <div class="value" id="explored">0%</div>
+                </div>
+            </div>
+            <div class="sensor-row">
+                <span><span class="sensor-dot off" id="sensorLidar"></span>LiDAR</span>
+                <span><span class="sensor-dot off" id="sensorIMU"></span>IMU</span>
+                <span><span class="sensor-dot off" id="sensorArduino"></span>Arduino</span>
+            </div>
+        </div>
+
+        <!-- Chat Interface -->
+        <div class="card chat-card">
+            <h2>💬 Command Chat</h2>
+            <div id="chatMessages">
+                <div class="chat-msg system">System ready. Type a command or use the buttons above.</div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="chatInput" placeholder="e.g., Go to the kitchen..." 
+                       onkeypress="if(event.key==='Enter') sendChat()">
+                <button class="btn btn-primary" onclick="sendChat()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── WebSocket Connection ──────────────────────────────
+        let ws = null;
+        let reconnectInterval = null;
+
+        function connectWebSocket() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+            ws.onopen = () => {
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                document.getElementById('connectionStatus').className = 'status-badge status-online';
+                addChatMessage('Connected to robot', 'system');
+                if (reconnectInterval) {
+                    clearInterval(reconnectInterval);
+                    reconnectInterval = null;
+                }
+            };
+
+            ws.onclose = () => {
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                document.getElementById('connectionStatus').className = 'status-badge status-offline';
+                if (!reconnectInterval) {
+                    reconnectInterval = setInterval(connectWebSocket, 3000);
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'state') {
+                    updateState(msg.data);
+                } else if (msg.type === 'response') {
+                    addChatMessage(msg.text, 'agent');
+                }
+            };
+        }
+
+        // ── Map Rendering ─────────────────────────────────────
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const trail = [];       // Robot position history
+        const MAX_TRAIL = 500;
+
+        // Apartment layout (must match virtual_world.py)
+        const WORLD_W = 10.0;  // meters
+        const WORLD_H = 8.0;
+        const walls = [
+            // Outer walls
+            [0,0, 10,0], [10,0, 10,8], [10,8, 0,8], [0,8, 0,0],
+            // Bedroom (bottom-left)
+            [0,3, 4,3], [4,0, 4,1.2], [4,1.8, 4,3],
+            // Kitchen (top-left)
+            [0,5, 4,5], [4,5, 4,6.2], [4,6.8, 4,8],
+        ];
+        const rooms = {
+            bedroom:     { x: 2.0, y: 1.5 },
+            kitchen:     { x: 2.0, y: 6.5 },
+            living_room: { x: 7.0, y: 4.0 },
+            hallway:     { x: 4.5, y: 4.0 },
+        };
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width  = rect.width - 2;
+            canvas.height = 400;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Convert world coords (meters) → canvas pixels
+        function w2c(wx, wy) {
+            const pad = 30;
+            const scaleX = (canvas.width  - pad * 2) / WORLD_W;
+            const scaleY = (canvas.height - pad * 2) / WORLD_H;
+            const scale  = Math.min(scaleX, scaleY);
+            const offX   = (canvas.width  - WORLD_W * scale) / 2;
+            const offY   = (canvas.height - WORLD_H * scale) / 2;
+            return [offX + wx * scale, offY + (WORLD_H - wy) * scale, scale];
+        }
+
+        function drawMap(state) {
+            const cw = canvas.width, ch = canvas.height;
+            ctx.clearRect(0, 0, cw, ch);
+
+            // Background
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, cw, ch);
+
+            // Grid
+            ctx.strokeStyle = '#1a1f2b';
+            ctx.lineWidth = 0.5;
+            for (let m = 0; m <= WORLD_W; m++) {
+                const [x1, y1] = w2c(m, 0);
+                const [x2, y2] = w2c(m, WORLD_H);
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            }
+            for (let m = 0; m <= WORLD_H; m++) {
+                const [x1, y1] = w2c(0, m);
+                const [x2, y2] = w2c(WORLD_W, m);
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            }
+
+            // Floor fill per room
+            const roomColors = {
+                bedroom: 'rgba(99,102,241,0.08)',
+                kitchen: 'rgba(234,179,8,0.08)',
+                living_room: 'rgba(34,197,94,0.08)',
+                hallway: 'rgba(148,163,184,0.05)',
+            };
+            // Bedroom floor
+            fillRoom(0, 0, 4, 3, roomColors.bedroom);
+            // Kitchen floor
+            fillRoom(0, 5, 4, 8, roomColors.kitchen);
+            // Living room floor (right side)
+            fillRoom(4, 0, 10, 8, roomColors.living_room);
+
+            // Walls
+            ctx.strokeStyle = '#e1e4e8';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            for (const [x1, y1, x2, y2] of walls) {
+                const [cx1, cy1] = w2c(x1, y1);
+                const [cx2, cy2] = w2c(x2, y2);
+                ctx.beginPath();
+                ctx.moveTo(cx1, cy1);
+                ctx.lineTo(cx2, cy2);
+                ctx.stroke();
+            }
+
+            // Door gaps (draw in floor color to show openings)
+            ctx.strokeStyle = '#2dd4bf';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            drawDoor(4, 1.2, 4, 1.8);  // Bedroom door
+            drawDoor(4, 6.2, 4, 6.8);  // Kitchen door
+            ctx.setLineDash([]);
+
+            // Room labels
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '11px -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            for (const [name, pos] of Object.entries(rooms)) {
+                const [cx, cy] = w2c(pos.x, pos.y);
+                const label = name.replace('_', ' ');
+                ctx.fillText(label.charAt(0).toUpperCase() + label.slice(1), cx, cy + 4);
+            }
+
+            if (!state) return;
+
+            // Trail
+            const rx = state.x ?? 5;
+            const ry = state.y ?? 4;
+            trail.push({ x: rx, y: ry });
+            if (trail.length > MAX_TRAIL) trail.shift();
+
+            if (trail.length > 1) {
+                ctx.strokeStyle = 'rgba(88,166,255,0.3)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                const [tx0, ty0] = w2c(trail[0].x, trail[0].y);
+                ctx.moveTo(tx0, ty0);
+                for (let i = 1; i < trail.length; i++) {
+                    const [tx, ty] = w2c(trail[i].x, trail[i].y);
+                    ctx.lineTo(tx, ty);
+                }
+                ctx.stroke();
+            }
+
+            // A* Planned path (green dashed line)
+            const path = state.current_path ?? [];
+            if (path.length > 1) {
+                // Path line
+                ctx.strokeStyle = 'rgba(34,197,94,0.6)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 4]);
+                ctx.beginPath();
+                const [px0, py0] = w2c(path[0][0], path[0][1]);
+                ctx.moveTo(px0, py0);
+                for (let i = 1; i < path.length; i++) {
+                    const [px, py] = w2c(path[i][0], path[i][1]);
+                    ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Waypoint dots
+                ctx.fillStyle = 'rgba(34,197,94,0.7)';
+                for (let i = 1; i < path.length; i++) {
+                    const [px, py] = w2c(path[i][0], path[i][1]);
+                    ctx.beginPath();
+                    ctx.arc(px, py, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Target marker (last waypoint)
+                const [tx, ty] = w2c(path[path.length-1][0], path[path.length-1][1]);
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(tx, ty, 8, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(tx - 4, ty); ctx.lineTo(tx + 4, ty);
+                ctx.moveTo(tx, ty - 4); ctx.lineTo(tx, ty + 4);
+                ctx.stroke();
+            }
+
+            // Nav target info
+            if (state.nav_target) {
+                const nt = state.nav_target;
+                ctx.fillStyle = '#22c55e';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'left';
+                const navLabel = nt.room ? `→ ${nt.room}` : `→ (${nt.x?.toFixed(1)}, ${nt.y?.toFixed(1)})`;
+                ctx.fillText(`${navLabel}  ${nt.waypoints_remaining ?? '?'} wp left`, 8, 14);
+            }
+
+            // Obstacle proximity ring
+            const obsDist = state.nearest_obstacle?.distance ?? 999;
+            if (obsDist < 2.0) {
+                const [rcx, rcy, scale] = w2c(rx, ry);
+                const ringR = obsDist * scale;
+                ctx.strokeStyle = obsDist < 0.3 ? 'rgba(248,113,113,0.4)' : 'rgba(240,173,78,0.2)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(rcx, rcy, ringR, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Robot body
+            const [robotCX, robotCY, sc] = w2c(rx, ry);
+            const robotR = 0.12 * sc;  // 12cm radius
+            const yaw = -(state.yaw ?? 0);  // flip for canvas Y
+
+            // Glow
+            const glow = ctx.createRadialGradient(robotCX, robotCY, robotR * 0.5, robotCX, robotCY, robotR * 3);
+            glow.addColorStop(0, 'rgba(88,166,255,0.15)');
+            glow.addColorStop(1, 'rgba(88,166,255,0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(robotCX, robotCY, robotR * 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body circle
+            ctx.fillStyle = state.is_navigating ? '#2dd4bf' : '#58a6ff';
+            ctx.beginPath();
+            ctx.arc(robotCX, robotCY, robotR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Heading arrow
+            const arrowLen = robotR * 2.5;
+            const ax = robotCX + Math.cos(yaw) * arrowLen;
+            const ay = robotCY + Math.sin(yaw) * arrowLen;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(robotCX, robotCY);
+            ctx.lineTo(ax, ay);
+            ctx.stroke();
+            // Arrowhead
+            const aSize = 5;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(ax - aSize * Math.cos(yaw - 0.5), ay - aSize * Math.sin(yaw - 0.5));
+            ctx.lineTo(ax - aSize * Math.cos(yaw + 0.5), ay - aSize * Math.sin(yaw + 0.5));
+            ctx.closePath();
+            ctx.fill();
+
+            // Current room highlight
+            const curRoom = state.current_room;
+            if (curRoom && rooms[curRoom]) {
+                const [lx, ly] = w2c(rooms[curRoom].x, rooms[curRoom].y);
+                ctx.fillStyle = '#2dd4bf';
+                ctx.font = 'bold 11px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                const label = curRoom.replace('_', ' ');
+                ctx.fillText('📍 ' + label.charAt(0).toUpperCase() + label.slice(1), lx, ly + 4);
+            }
+
+            // Coordinates label
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`(${rx.toFixed(2)}, ${ry.toFixed(2)})  ${(state.yaw_deg ?? 0).toFixed(0)}°`, 8, ch - 8);
+            ctx.textAlign = 'right';
+            ctx.fillText(`🔋 ${(state.battery_level ?? 100).toFixed(0)}%  ⚡ ${(state.linear_speed ?? 0).toFixed(2)} m/s`, cw - 8, ch - 8);
+        }
+
+        function fillRoom(x1, y1, x2, y2, color) {
+            const [cx1, cy1] = w2c(x1, y1);
+            const [cx2, cy2] = w2c(x2, y2);
+            ctx.fillStyle = color;
+            ctx.fillRect(Math.min(cx1,cx2), Math.min(cy1,cy2), Math.abs(cx2-cx1), Math.abs(cy2-cy1));
+        }
+
+        function drawDoor(x1, y1, x2, y2) {
+            const [cx1, cy1] = w2c(x1, y1);
+            const [cx2, cy2] = w2c(x2, y2);
+            ctx.beginPath();
+            ctx.moveTo(cx1, cy1);
+            ctx.lineTo(cx2, cy2);
+            ctx.stroke();
+        }
+
+        // Draw initial empty map
+        drawMap(null);
+
+        // ── State Updates ─────────────────────────────────────
+        function updateState(state) {
+            // Update map
+            drawMap(state);
+
+            // Update text values
+            document.getElementById('posX').textContent = state.x?.toFixed(2) ?? '--';
+            document.getElementById('posY').textContent = state.y?.toFixed(2) ?? '--';
+            document.getElementById('heading').textContent = (state.yaw_deg?.toFixed(1) ?? '0') + '°';
+            document.getElementById('speed').textContent = (state.linear_speed?.toFixed(2) ?? '0') + ' m/s';
+            document.getElementById('room').textContent = state.current_room ?? 'unknown';
+            document.getElementById('explored').textContent = (state.explored_percentage?.toFixed(0) ?? '0') + '%';
+
+            // Battery with color coding
+            const batteryEl = document.getElementById('battery');
+            const battery = state.battery_level ?? 100;
+            batteryEl.textContent = battery.toFixed(0) + '%';
+            batteryEl.className = 'value ' + (battery > 50 ? 'good' : battery > 20 ? 'warning' : 'danger');
+
+            // Obstacle with color coding
+            const obstacleEl = document.getElementById('obstacle');
+            const dist = state.nearest_obstacle?.distance ?? 999;
+            obstacleEl.textContent = dist < 100 ? dist.toFixed(2) + ' m' : '> 10 m';
+            obstacleEl.className = 'value ' + (dist > 1 ? 'good' : dist > 0.5 ? 'warning' : 'danger');
+
+            // Sensor indicators
+            const sensors = state.sensors ?? {};
+            setSensorDot('sensorLidar', sensors.lidar);
+            setSensorDot('sensorIMU', sensors.imu);
+            setSensorDot('sensorArduino', sensors.arduino);
+        }
+
+        function setSensorDot(id, isOn) {
+            const el = document.getElementById(id);
+            el.className = 'sensor-dot ' + (isOn ? 'on' : 'off');
+        }
+
+        // ── Chat ──────────────────────────────────────────────
+        function addChatMessage(text, type) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-msg ' + type;
+            div.textContent = (type === 'user' ? '👤 ' : type === 'agent' ? '🤖 ' : '⚙️ ') + text;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addChatMessage(text, 'user');
+            input.value = '';
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'command', text: text }));
+            } else {
+                // Fallback to REST API
+                fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text }),
+                })
+                .then(r => r.json())
+                .then(data => addChatMessage(data.response || data.error, 'agent'))
+                .catch(e => addChatMessage('Error: ' + e.message, 'system'));
+            }
+        }
+
+        // ── Control Buttons ───────────────────────────────────
+        function emergencyStop() {
+            fetch('/api/stop', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => addChatMessage('🛑 ' + (data.message || 'Stopped'), 'system'));
+        }
+
+        function startExplore() {
+            fetch('/api/explore', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => addChatMessage('🔍 ' + (data.response || 'Exploring...'), 'system'));
+        }
+
+        function goHome() {
+            fetch('/api/go-home', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => addChatMessage('🏠 ' + (data.message || 'Going home...'), 'system'));
+        }
+
+        // ── Initialize ───────────────────────────────────────
+        connectWebSocket();
+    </script>
+</body>
+</html>

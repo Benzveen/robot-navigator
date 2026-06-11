@@ -1,0 +1,100 @@
+# ============================================
+# Robot Navigator — Configuration
+# ============================================
+
+robot:
+  name: "explorer-bot"
+  base_frame: "base_link"
+  odom_frame: "odom"
+  map_frame: "map"
+
+  # Physical dimensions (meters)
+  wheel_radius: 0.033
+  wheel_separation: 0.16
+  max_linear_speed: 0.3       # m/s
+  max_angular_speed: 1.0      # rad/s
+
+# --- Hardware Pins (BCM numbering) ---
+hardware:
+  arduino:
+    port: "/dev/ttyUSB0"
+    baud_rate: 115200
+    heartbeat_interval: 0.5   # seconds
+    timeout: 2.0              # seconds before watchdog triggers
+
+  lidar:
+    port: "/dev/ttyUSB1"
+    baud_rate: 115200
+    scan_rate: 10             # Hz
+
+  imu:
+    i2c_bus: 1
+    address: 0x68             # MPU6050 default
+    sample_rate: 100          # Hz
+
+# --- Navigation ---
+navigation:
+  # Map settings
+  map_resolution: 0.05        # meters per pixel
+  map_size: 200               # pixels (200 x 200 = 10m x 10m)
+
+  # Goal tolerances
+  xy_goal_tolerance: 0.15     # meters
+  yaw_goal_tolerance: 0.1     # radians
+
+  # Safety
+  obstacle_range: 0.5         # meters — stop if obstacle closer
+  slowdown_range: 1.0         # meters — reduce speed
+
+  # Recovery behaviors
+  max_recovery_attempts: 3
+  backup_distance: 0.3        # meters
+
+# --- LLM Agent ---
+agent:
+  model: "claude-sonnet-4-20250514"
+  max_tokens: 1024
+  temperature: 0.3
+  
+  # How often the agent re-evaluates (seconds)
+  think_interval: 5.0
+  
+  # Max API retries on failure
+  max_retries: 3
+  retry_delay: 2.0
+
+  # Offline fallback
+  fallback_mode: "waypoint"   # "waypoint" | "return_home" | "stop"
+
+# --- Dashboard ---
+dashboard:
+  host: "0.0.0.0"
+  port: 8080
+  ws_update_rate: 10          # Hz — WebSocket update frequency
+
+# --- Logging ---
+logging:
+  level: "INFO"
+  file: "logs/robot.log"
+  rotation: "10 MB"
+  retention: "7 days"
+
+# --- Room Definitions (for LLM context) ---
+rooms:
+  - name: "living_room"
+    description: "Main living area with sofa and TV"
+    # Approximate map coordinates (filled after SLAM)
+    center_x: null
+    center_y: null
+  - name: "kitchen"
+    description: "Kitchen with dining table"
+    center_x: null
+    center_y: null
+  - name: "bedroom"
+    description: "Bedroom with bed and wardrobe"
+    center_x: null
+    center_y: null
+  - name: "hallway"
+    description: "Connecting corridor"
+    center_x: null
+    center_y: null
