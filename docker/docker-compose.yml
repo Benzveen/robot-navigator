@@ -28,28 +28,29 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw  # X11 forwarding (optional)
       - ../maps:/ros2_ws/maps              # Share maps between host and container
     command: >
-      bash -c "
-        source /opt/ros/jazzy/setup.bash &&
-
-        echo '🚀 Starting ROS 2 Nav2 simulation...' &&
-
-        # Start rosbridge for external agent connection
-        ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090 &
-
-        # Start Nav2 with Turtlebot3 in Gazebo (headless)
-        ros2 launch nav2_bringup tb3_simulation_launch.py \
-          headless:=True \
-          use_sim_time:=True \
-          autostart:=True \
-          params_file:=/ros2_ws/src/robot_navigator/src/config/nav2_params.yaml &
-
-        echo '✅ Nav2 simulation running!' &&
-        echo '📡 rosbridge WebSocket: ws://localhost:9090' &&
-        echo '🤖 Connect your LLM agent to ws://localhost:9090' &&
-
-        # Keep container running
-        wait
-      "
+      bash -c "source /opt/ros/jazzy/setup.bash &&
+      echo '🚀 Starting ROS 2 Nav2 (no Gazebo — lightweight mode)...' &&
+      echo '' &&
+      echo '📡 Starting rosbridge on port 9090...' &&
+      ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090 &
+      sleep 2 &&
+      echo '🗺️ Starting SLAM Toolbox...' &&
+      ros2 launch slam_toolbox online_async_launch.py use_sim_time:=False &
+      sleep 2 &&
+      echo '🧭 Starting Nav2 navigation stack...' &&
+      ros2 launch nav2_bringup navigation_launch.py use_sim_time:=False autostart:=True &
+      sleep 2 &&
+      echo '' &&
+      echo '============================================' &&
+      echo '✅ ROS 2 Nav2 stack is running!' &&
+      echo '============================================' &&
+      echo '📡 rosbridge WebSocket: ws://localhost:9090' &&
+      echo '🗺️ SLAM Toolbox: active (waiting for /scan)' &&
+      echo '🧭 Nav2: active (planner + controller + recovery)' &&
+      echo '' &&
+      echo 'Connect your LLM agent: make run-nav2' &&
+      echo '============================================' &&
+      wait"
     restart: unless-stopped
 
   # ── SLAM Mode (for mapping a new environment) ───────

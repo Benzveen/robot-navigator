@@ -45,10 +45,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages for the LLM agent bridge
-RUN pip3 install --break-system-packages \
+# Note: --ignore-installed to avoid conflicts with system packages (e.g. cryptography)
+RUN pip3 install --break-system-packages --ignore-installed \
     anthropic \
     fastapi \
-    uvicorn[standard] \
+    "uvicorn[standard]" \
     websockets \
     pydantic \
     python-dotenv \
