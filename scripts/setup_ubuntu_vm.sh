@@ -73,7 +73,7 @@ source /opt/ros/jazzy/setup.bash
 
 # ── 5. Install Python Packages ────────────────────────────
 echo ""
-echo "🐍 Step 5/6: Installing Python packages for LLM agent..."
+echo "🐍 Step 5/6: Installing Python packages..."
 pip3 install --break-system-packages \
   anthropic \
   fastapi \
@@ -85,19 +85,32 @@ pip3 install --break-system-packages \
   pyyaml \
   roslibpy \
   numpy \
-  scipy
+  scipy \
+  filterpy \
+  pyserial \
+  pytest \
+  pytest-asyncio
 
 # ── 6. Clone Robot Project ────────────────────────────────
 echo ""
 echo "📂 Step 6/6: Setting up robot project..."
 mkdir -p ~/Development
+cd ~/Development
 if [ ! -d ~/Development/robot ]; then
-  echo "Clone your robot repo here:"
-  echo "  cd ~/Development && git clone <your-repo-url> robot"
-  echo ""
-  echo "Or copy from Mac shared folder if available."
+  git clone https://github.com/Benzveen/robot-navigator.git robot
+  echo "✅ Cloned robot-navigator repo"
 else
-  echo "Robot project already exists at ~/Development/robot"
+  cd ~/Development/robot && git pull
+  echo "✅ Robot project updated"
+fi
+
+# Setup .env if not exists
+cd ~/Development/robot
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo ""
+  echo "⚠️  Edit .env with your Anthropic API key:"
+  echo "  nano ~/Development/robot/.env"
 fi
 
 # ── Done! ─────────────────────────────────────────────────
@@ -106,20 +119,31 @@ echo "============================================"
 echo "✅ Setup Complete!"
 echo "============================================"
 echo ""
-echo "Test ROS 2:"
-echo "  source /opt/ros/jazzy/setup.bash"
-echo "  ros2 --version"
+echo "📁 Project: ~/Development/robot"
 echo ""
-echo "Launch Nav2 + Gazebo simulation:"
-echo "  ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False"
+echo "── Run Everything (recommended) ──────────"
 echo ""
-echo "Launch SLAM mode (for mapping new environments):"
-echo "  ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False slam:=True"
+echo "  Terminal 1 — Nav2 + Gazebo simulation:"
+echo "    source /opt/ros/jazzy/setup.bash"
+echo "    ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False"
 echo ""
-echo "Start rosbridge (for LLM agent connection from Mac):"
-echo "  ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090"
+echo "  Terminal 2 — LLM Agent + Dashboard:"
+echo "    cd ~/Development/robot"
+echo "    PYTHONPATH=src python3 -m simulator.sim_runner"
+echo "    # Dashboard: http://localhost:8080"
 echo ""
-echo "Find VM IP (for Mac connection):"
-echo "  ip addr show | grep 'inet '"
+echo "── Or run lightweight sim (no ROS 2) ─────"
+echo ""
+echo "  cd ~/Development/robot"
+echo "  PYTHONPATH=src python3 -m simulator.sim_runner"
+echo ""
+echo "── Tests ─────────────────────────────────"
+echo ""
+echo "  cd ~/Development/robot"
+echo "  python3 -m pytest tests/ -v"
+echo ""
+echo "── Edit API key ──────────────────────────"
+echo ""
+echo "  nano ~/Development/robot/.env"
 echo ""
 echo "============================================"
