@@ -40,28 +40,17 @@ run-sim: ## Start in simulation mode (no hardware required)
 dashboard: ## Start only the web dashboard
 	$(PY) -m uvicorn src.dashboard.server:app --host 0.0.0.0 --port 8080 --reload
 
-# ── ROS 2 Docker Simulation ─────────────────────────────────
+# ── ROS 2 Nav2 (Ubuntu VM or Raspberry Pi) ──────────────────
 
-docker-build: ## Build the ROS 2 Nav2 Docker image
-	docker build -t robot-nav2-sim -f docker/Dockerfile .
-
-docker-sim: ## Start full Nav2 + Gazebo simulation in Docker
-	docker compose -f docker/docker-compose.yml up -d
-	@echo ""
-	@echo "✅ Nav2 simulation starting in Docker..."
-	@echo "📡 rosbridge: ws://localhost:9090"
-	@echo "⏳ Wait ~30s for Gazebo to load, then run:"
-	@echo "   make run-nav2"
-	@echo ""
-
-docker-stop: ## Stop the Docker simulation
-	docker compose -f docker/docker-compose.yml down
-
-docker-logs: ## View Docker simulation logs
-	docker compose -f docker/docker-compose.yml logs -f
-
-run-nav2: ## Connect LLM agent to Nav2 in Docker (run after docker-sim)
+run-nav2: ## Connect LLM agent to Nav2 via rosbridge (set ROSBRIDGE_HOST)
 	PYTHONPATH=src $(PY) -m simulator.ros2_bridge
+
+setup-vm: ## Show Ubuntu VM setup instructions
+	@echo "Run this inside your Ubuntu VM:"
+	@echo "  git clone https://github.com/Benzveen/robot-navigator.git ~/Development/robot"
+	@echo "  cd ~/Development/robot"
+	@echo "  chmod +x scripts/setup_ubuntu_vm.sh"
+	@echo "  ./scripts/setup_ubuntu_vm.sh"
 
 # ── ROS 2 (native, on Raspberry Pi) ────────────────────────
 
