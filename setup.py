@@ -14,7 +14,7 @@ setup(
     maintainer="Your Name",
     maintainer_email="your@email.com",
     description="LLM-powered LiDAR navigation robot",
-    license="MIT",
+    license="MIT local",
     entry_points={
         "console_scripts": [
             "robot_agent = agent.agent:main",
